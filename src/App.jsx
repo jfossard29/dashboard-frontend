@@ -1,58 +1,147 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from "./pages/LoginPage";
-import ForumPage from "./pages/ForumPage";
-import DetailPage from "./pages/DetailPage";
-import Sidebar from "./components/Sidebar";
-import { charactersMock, serversMock } from "./data/characters";
-import Navbar from "./components/Navbar";
-import ItemsManagementPage from "./pages/ItemsManagementPage";
-import ConfigurationPage from "./pages/ConfigurationPage";
+import { Loader2 } from 'lucide-react';
+import GlobalPage from "./pages/GlobalPage";
+import AuthCallback from "./pages/AuthCallback.jsx";
+import ServerPage from "./pages/ServerPage.jsx";
+
+// Composant principal App
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentPage, setCurrentPage] = useState("login");
-  const [characters, setCharacters] = useState(charactersMock);
-  const [selectedCharacter, setSelectedCharacter] = useState(null);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const authCheckRef = React.useRef(false);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-    setCurrentPage("forum");
-  };
+    useEffect(() => {
+        if (!authCheckRef.current) {
+            authCheckRef.current = true;
+            checkAuth();
+        }
+    }, []);
 
-  if (!isAuthenticated) return <LoginPage handleLogin={handleLogin} />;
 
-  return (
-    <div className="flex h-screen bg-gray-900">
-      <Sidebar servers={serversMock} />
-      <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage}/>
-      <div className="flex flex-col flex-1">
-        {currentPage === "forum" && (
-          <ForumPage
-            characters={characters}
-            onSelectCharacter={(c) => {
-              setSelectedCharacter(c);
-              setCurrentPage("detail");
-            }}
-          />
-        )}
-        {currentPage === "detail" && (
-          <DetailPage
-            character={selectedCharacter}
-            onBack={() => setCurrentPage("forum")}
-          />
-        )}
-        {currentPage === "objets" && (
-          <ItemsManagementPage
-            onBack={() => setCurrentPage("forum")}
-          />
-        )}
-        {currentPage === "configuration" && (
-          <ConfigurationPage
-            onBack={() => setCurrentPage("forum")}
-          />
-        )}
-      </div>
-    </div>
-  );
+    const checkAuth = async () => {
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+            const response = await fetch(`${apiUrl}/auth/check`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+            console.log('Auth check data:', data);
+
+            if (data.authenticated) {
+                setIsAuthenticated(true);
+
+                // ✅ Transformer les guilds pour avoir les bonnes URLs d'images
+                const guilds = data.guilds?.map(guild => ({
+                    id: guild.id,
+                    name: guild.name,
+                    icon: guild.icon,
+                    owner: guild.owner
+                })) || [];
+
+                setUser({
+                    id: data.userId,
+                    username: data.username,
+                    avatar: data.avatar,
+                    guilds: guilds
+                });
+            }
+        } catch (error) {
+            console.error('Erreur lors de la vérification de l\'authentification:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateUser = (newUserData) => {
+        setUser(newUserData);
+    };
+
+    const handleAuthSuccess = (userData) => {
+        setIsAuthenticated(true);
+        setUser(userData);
+    };
+
+    const handleLogout = async () => {
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+            await fetch(`${apiUrl}/auth/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            setIsAuthenticated(false);
+            setUser(null);
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Erreur lors de la déconnexion:', error);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="w-16 h-16 text-orange-500 animate-spin mx-auto mb-4" />
+                    <p className="text-gray-400">Chargement...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // ✅ Composant pour protéger les routes et passer user
+    const ProtectedRoute = ({ children }) => {
+        if (!isAuthenticated || !user) {
+            return <Navigate to="/" replace />;
+        }
+        return children;
+    };
+
+    return (
+        <Router>
+            <Routes>
+                <Route
+                    path="/"
+                    element={
+                        isAuthenticated ?
+                            <Navigate to="/dashboard" replace /> :
+                            <LoginPage />
+                    }
+                />
+
+                <Route
+                    path="/auth/callback"
+                    element={<AuthCallback onAuthSuccess={handleAuthSuccess} />}
+                />
+
+                {/* Page d'accueil globale */}
+                <Route
+                    path="/dashboard"
+                    element={
+                        <ProtectedRoute>
+                            <GlobalPage user={user} onLogout={handleLogout} />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Page serveur avec ID dynamique */}
+                <Route
+                    path="/dashboard/server/:serverId"
+                    element={
+                        <ProtectedRoute>
+                            <ServerPage user={user} onLogout={handleLogout} onUpdateUser={updateUser}/>
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </Router>
+    );
 };
 
 export default App;

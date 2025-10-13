@@ -1,30 +1,44 @@
 import React, { useState, useEffect } from "react";
-import { Search, Star } from "lucide-react";
+import {ArrowLeft, Search, Star} from "lucide-react";
 import '../Scrollbar.css';
 
-const ForumPage = ({ idServeur, onSelectCharacter }) => {
+const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId }) => {
   const [characters, setCharacters] = useState([]);
   const [copiedCreator, setCopiedCreator] = useState(null);
+  const fetchedRef = React.useRef(false);
 
-  // Fonction pour récupérer les personnages
   useEffect(() => {
     const fetchCharacters = async () => {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+
+      console.log("test"); // Déplacé ici
+
       try {
-        const response = await fetch(`http://localhost:8080/personnage/liste/${idServeur}`);
+        const response = await fetch(`http://localhost:8080/personnage/liste/${serverId}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+        });
+
         if (!response.ok) {
           throw new Error("Erreur lors de la récupération des personnages");
         }
+
         const data = await response.json();
-        // Transformez les données si nécessaire
         const formattedCharacters = data.body.map((character) => ({
           id: character.id,
           name: `${character.prenom} ${character.nom}`,
           image: character.image,
           summary: character.resume,
-          level: character.niveau || 1, // Ajoutez un niveau par défaut si non fourni
-          power: character.puissance || 0, // Ajoutez une puissance par défaut si non fournie
-          userAvatar: character.userAvatar || "https://example.com/default-avatar.jpg",
-          creatorName: character.idUtilisateur,
+          level: character.niveau || 1,
+          power: character.puissance || 0,
+          userAvatar: findUserAvatar(character.idUtilisateur),
+          userUsername: findUserUsername(character.idUtilisateur),
+          idUtilisateur: character.idUtilisateur,
         }));
         setCharacters(formattedCharacters);
       } catch (error) {
@@ -33,13 +47,15 @@ const ForumPage = ({ idServeur, onSelectCharacter }) => {
     };
 
     fetchCharacters();
-  }, [idServeur]);
+  }, [serverId]);
+
+
 
   const copyCreatorName = async (e, creatorName) => {
     e.stopPropagation(); // Empêcher la propagation vers le clic du personnage
 
     try {
-      await navigator.clipboard.writeText(creatorName || "Créateur");
+      await navigator.clipboard.writeText("<@"+creatorName+">" || "Créateur");
       setCopiedCreator(creatorName);
 
       // Réinitialiser après 2 secondes
@@ -63,9 +79,29 @@ const ForumPage = ({ idServeur, onSelectCharacter }) => {
     }
   };
 
+  const findUserAvatar = (userId) => {
+    const user = members.find((member) => member.id === userId);
+    return user?.avatar || "https://i.imgur.com/0000000.png";
+
+  }
+
+  const findUserUsername = (userId) => {
+    const user = members.find((member) => member.id === userId);
+    return user?.username || "https://i.imgur.com/0000000.png";
+
+  }
   return (
-    <div className="flex-1 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ml-20 h-screen flex flex-col pt-20">
-      {/* Header fixe */}
+      <>
+        <div className="flex justify-between items-center mt-2">
+          <button
+              onClick={onBack}
+              className="flex items-center space-x-2 text-orange-400 hover:text-orange-300"
+          >
+            <ArrowLeft size={20} />
+            <span>Retour</span>
+          </button>
+        </div>
+
       <div className="flex-shrink-0 p-6 pb-0">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-2">
@@ -84,38 +120,40 @@ const ForumPage = ({ idServeur, onSelectCharacter }) => {
         </div>
       </div>
 
-      {/* Zone scrollable avec scrollbar personnalisée */}
       <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-custom">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 py-2">
           {characters.map((character) => (
             <div
               key={character.id}
-              onClick={() => onSelectCharacter(character)}
+              onClick={() => {
+                onSelectCharacterId(character.id);
+                onNavigate('detail');
+              }}
               className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm p-6 rounded-2xl border border-gray-700/50 hover:border-orange-500/50 transition-all duration-300 cursor-pointer group hover:shadow-2xl shadow-lg hover:-translate-y-1"
             >
               <div className="relative mb-4">
                 <img
                   src={character.image}
                   alt={character.name}
-                  className="w-24 h-24 rounded-2xl object-cover border-3 border-gradient-to-r from-orange-400 to-red-500 shadow-lg mb-4"
+                  className="w-24 h-24 rounded-2xl object-cover border-3 border-gradient-to-r from-orange-400 to-red-500 shadow-lg mb-4 object-top"
                 />
                 <div className="absolute -top-2 -right-2 group/creator">
                   <img
                     src={character.userAvatar}
                     alt="Créateur"
                     className="w-10 h-10 rounded-full object-cover border-3 border-gray-600 hover:border-orange-400 transition-colors duration-200 shadow-lg cursor-pointer"
-                    onClick={(e) => copyCreatorName(e, character.creatorName)}
+                    onClick={(e) => copyCreatorName(e, character.idUtilisateur)}
                   />
                   <div
                     className={`absolute top-1/2 right-12 transform -translate-y-1/2 px-3 py-2 rounded-lg opacity-0 group-hover/creator:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-[9999] shadow-lg ${
-                      copiedCreator === character.creatorName
+                      copiedCreator === character.idUtilisateur
                         ? "bg-green-600 text-white"
                         : "bg-gray-800 text-white"
                     }`}
                   >
-                    {copiedCreator === character.creatorName
+                    {copiedCreator === character.idUtilisateur
                       ? "Pseudo copié"
-                      : `@${character.creatorName || "Créateur"}`}
+                      : `${character.userUsername || "Créateur"}`}
                   </div>
                 </div>
               </div>
@@ -142,7 +180,7 @@ const ForumPage = ({ idServeur, onSelectCharacter }) => {
           ))}
         </div>
       </div>
-    </div>
+      </>
   );
 };
 
