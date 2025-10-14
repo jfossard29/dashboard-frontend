@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import GlobalPage from "./pages/GlobalPage";
 import AuthCallback from "./pages/AuthCallback.jsx";
 import ServerPage from "./pages/ServerPage.jsx";
+import loginService from "./services/loginService.js";
 
 // Composant principal App
 const App = () => {
@@ -23,13 +24,8 @@ const App = () => {
 
     const checkAuth = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-            const response = await fetch(`${apiUrl}/auth/check`, {
-                method: 'GET',
-                credentials: 'include'
-            });
 
-            const data = await response.json();
+            const data = await loginService.checkAuth();
             console.log('Auth check data:', data);
 
             if (data.authenticated) {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import loginService from "../services/loginService.js";
 
 // Composant pour gérer le callback OAuth2
 const AuthCallback = ({ onAuthSuccess }) => {
@@ -8,64 +9,48 @@ const AuthCallback = ({ onAuthSuccess }) => {
     const navigate = useNavigate();
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
-    const hasCalledBackend = React.useRef(false);
 
     useEffect(() => {
-        const handleCallback = async () => {
-            // Si déjà appelé, on sort
-            if (hasCalledBackend.current) return;
+        handleCallback()
+    });
 
-            const code = searchParams.get('code');
-            const errorParam = searchParams.get('error');
+    const handleCallback = async () => {
 
-            if (errorParam) {
-                setError(`Erreur d'authentification: ${errorParam}`);
-                setLoading(false);
-                setTimeout(() => navigate('/'), 3000);
-                return;
-            }
+        const code = searchParams.get('code');
+        const errorParam = searchParams.get('error');
 
-            if (!code) {
-                setError('Code d\'autorisation manquant');
-                setLoading(false);
-                setTimeout(() => navigate('/'), 3000);
-                return;
-            }
+        if (errorParam) {
+            setError(`Erreur d'authentification: ${errorParam}`);
+            setLoading(false);
+            setTimeout(() => navigate('/'), 3000);
+            return;
+        }
 
-            // On marque comme traité avant l'appel API
-            hasCalledBackend.current = true;
+        if (!code) {
+            setError('Code d\'autorisation manquant');
+            setLoading(false);
+            setTimeout(() => navigate('/'), 3000);
+            return;
+        }
 
-            try {
-                const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-                const response = await fetch(
-                    `${apiUrl}/auth/callback?code=${code}`,
-                    {
-                        method: 'GET',
-                        credentials: 'include'
-                    }
-                );
+        try {
+            const data = await loginService.getAuthCallback(code);
 
-                const data = await response.json();
-
-                if (data.success) {
-                    onAuthSuccess(data.user);
-                    navigate('/dashboard', { replace: true });
-                } else {
-                    setError(data.message || 'Erreur d\'authentification');
-                    setLoading(false);
-                    setTimeout(() => navigate('/', { replace: true }), 3000);
-                }
-            } catch (err) {
-                console.error('❌ Erreur lors du callback:', err);
-                setError('Erreur de connexion au serveur');
+            if (data.success) {
+                onAuthSuccess(data.user);
+                navigate('/dashboard', { replace: true });
+            } else {
+                setError(data.message || 'Erreur d\'authentification');
                 setLoading(false);
                 setTimeout(() => navigate('/', { replace: true }), 3000);
             }
-        };
-
-        handleCallback();
-    }, []);
-
+        } catch (err) {
+            console.error('❌ Erreur lors du callback:', err);
+            setError('Erreur de connexion au serveur');
+            setLoading(false);
+            setTimeout(() => navigate('/', { replace: true }), 3000);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">

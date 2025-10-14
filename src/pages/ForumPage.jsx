@@ -1,55 +1,46 @@
 import React, { useState, useEffect } from "react";
 import {ArrowLeft, Search, Star} from "lucide-react";
 import '../Scrollbar.css';
+import PageHeader from "../components/PageHeader.jsx";
+import personnageService from "../services/personnageService.js";
+import Popup from "../components/Popup.jsx";
 
 const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId }) => {
   const [characters, setCharacters] = useState([]);
   const [copiedCreator, setCopiedCreator] = useState(null);
-  const fetchedRef = React.useRef(false);
+  const [popup, setPopup] = useState({ message: '', type: '' });
 
   useEffect(() => {
-    const fetchCharacters = async () => {
-      if (fetchedRef.current) return;
-      fetchedRef.current = true;
-
-      console.log("test"); // Déplacé ici
-
-      try {
-        const response = await fetch(`http://localhost:8080/personnage/liste/${serverId}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Erreur lors de la récupération des personnages");
-        }
-
-        const data = await response.json();
-        const formattedCharacters = data.body.map((character) => ({
-          id: character.id,
-          name: `${character.prenom} ${character.nom}`,
-          image: character.image,
-          summary: character.resume,
-          level: character.niveau || 1,
-          power: character.puissance || 0,
-          userAvatar: findUserAvatar(character.idUtilisateur),
-          userUsername: findUserUsername(character.idUtilisateur),
-          idUtilisateur: character.idUtilisateur,
-        }));
-        setCharacters(formattedCharacters);
-      } catch (error) {
-        console.error("Erreur :", error);
-      }
-    };
-
-    fetchCharacters();
+    if (serverId) fetchCharacters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverId]);
 
+  const fetchCharacters = async () => {
+    try {
+      console.log("Appel Personnage");
+      const data = await personnageService.getPersonnageListe(serverId);
+      setCharacters(data.body);
+      const formattedCharacters = data.body.map((character) => ({
+        id: character.id,
+        name: `${character.prenom} ${character.nom}`,
+        image: character.image,
+        summary: character.resume,
+        level: character.niveau || 1,
+        power: character.puissance || 0,
+        userAvatar: findUserAvatar(character.idUtilisateur),
+        userUsername: findUserUsername(character.idUtilisateur),
+        idUtilisateur: character.idUtilisateur,
+      }));
+      setCharacters(formattedCharacters);
 
+    } catch (error) {
+      showPopup('Erreur lors du chargement', 'error');
+      console.error("Erreur :", error);
+    }
+  };
+
+  const showPopup = (message, type) => setPopup({ message, type });
+  const closePopup = () => setPopup({ message: '', type: '' });
 
   const copyCreatorName = async (e, creatorName) => {
     e.stopPropagation(); // Empêcher la propagation vers le clic du personnage
@@ -103,12 +94,11 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId 
         </div>
 
       <div className="flex-shrink-0 p-6 pb-0">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-2">
-            Personnages
-          </h1>
-          <p className="text-gray-400">Gérez vos personnages et découvrez leurs histoires</p>
-        </div>
+        <PageHeader
+            currentPage="Personnage"
+            onButtonClick={null}
+            loading={null}
+        />
 
         <div className="mb-6 relative">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -180,6 +170,7 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId 
           ))}
         </div>
       </div>
+        <Popup message={popup.message} type={popup.type} onClose={closePopup} />
       </>
   );
 };

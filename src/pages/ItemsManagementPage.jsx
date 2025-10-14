@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import {Plus, Loader2, ArrowLeft} from 'lucide-react';
 import '../Scrollbar.css';
 import Popup from '../components/Popup.jsx';
 import ItemEditorModal from '../components/ItemEditorModal.jsx';
@@ -7,6 +7,8 @@ import ItemCard from '../components/ItemCard.jsx';
 import ItemSearchBar from '../components/ItemSearchBar.jsx';
 import ItemFilters from '../components/ItemFilters.jsx';
 import ItemSorter from '../components/ItemSorter.jsx';
+import PageHeader from "../components/PageHeader.jsx";
+import itemService from "../services/objetService.js";
 
 /**
  * ItemsManagementPage.jsx
@@ -14,7 +16,7 @@ import ItemSorter from '../components/ItemSorter.jsx';
  * - Utilise les composants séparés : ItemCard, ItemSearchBar, ItemFilters, ItemSorter, ItemEditorModal, Popup
  */
 
-const ItemsManagementPage = ({ serverId }) => {
+const ItemsManagementPage = ({ serverId, onBack }) => {
   // États
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,24 +49,11 @@ const ItemsManagementPage = ({ serverId }) => {
 
   const fetchItems = async () => {
     try {
-      setLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${apiUrl}/objet/liste/${serverId}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setItems(data.body || data);
-      } else {
-        showPopup('Erreur lors du chargement des objets', 'error');
-      }
-    } catch (error) {
-      console.error('Erreur lors du fetch des items:', error);
-      showPopup('Erreur de connexion au serveur', 'error');
-    } finally {
+      const data = await itemService.getObjets(serverId);
+      setItems(data.body || data);
       setLoading(false);
+    } catch (error) {
+      showPopup('Erreur lors du chargement : '+error, 'error');
     }
   };
 
@@ -255,23 +244,21 @@ const ItemsManagementPage = ({ serverId }) => {
 
   return (
       <>
+        <div className="flex justify-between items-center mt-2">
+          <button
+              onClick={onBack}
+              className="flex items-center space-x-2 text-orange-400 hover:text-orange-300"
+          >
+            <ArrowLeft size={20} />
+            <span>Retour</span>
+          </button>
+        </div>
         <div className="flex-shrink-0 p-6 pb-0">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-2">
-                Gestion des Objets
-              </h1>
-              <p className="text-gray-400">Gérez votre inventaire et créez de nouveaux objets</p>
-            </div>
-
-            <button
-                onClick={addNewItem}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl transition-all duration-200 flex items-center space-x-2 shadow-lg transform hover:scale-105"
-            >
-              <Plus size={20} />
-              <span>Nouvel Objet</span>
-            </button>
-          </div>
+          <PageHeader
+              currentPage="Objet"
+              onButtonClick={addNewItem}
+              loading={saving}
+          />
 
           <ItemSearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
           <div className="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-gray-800/30 p-4 rounded-xl border border-gray-700/50">

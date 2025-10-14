@@ -150,16 +150,8 @@ const ServerPage = ({ user, onLogout, onUpdateUser }) => {
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
                 serverId={serverId}
+                onLogout={onLogout}
             />
-
-            {/* Bouton de déconnexion */}
-            <button
-                onClick={onLogout}
-                className="fixed top-4 right-4 z-50 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 rounded-xl transition-all duration-200 text-red-500 text-sm flex items-center space-x-2"
-            >
-                <LogOut className="w-4 h-4" />
-                <span>Déconnexion</span>
-            </button>
 
             <div className="flex-1 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ml-20 h-screen overflow-y-auto pt-20 px-6 pb-6 scrollbar-custom">
                 {/* Page d'accueil du serveur */}
@@ -295,7 +287,7 @@ const ServerPage = ({ user, onLogout, onUpdateUser }) => {
                 )}
 
                 {currentPage === "objets" && (
-                    <ItemsManagementPage serverId={serverId} />
+                    <ItemsManagementPage serverId={serverId} onBack={() => setCurrentPage('home')} />
                 )}
 
                 {currentPage === "configuration" && (

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Users, Zap, BookOpen, ArrowRight, CheckCircle } from 'lucide-react';
+import personnageService from "../services/personnageService.js";
+import loginService from "../services/loginService.js";
 
 const LoginPage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -14,35 +16,13 @@ const LoginPage = () => {
 
   const handleDiscordLogin = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      console.log('Appel à:', `${apiUrl}/auth/discord/url`);
-
-      const response = await fetch(`${apiUrl}/auth/discord/url`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('URL Discord reçue:', data.url);
-
-      // Ajout d'une vérification des cookies
-      console.log('Cookies actuels:', document.cookie);
-
+      const data = await loginService.getLogin();
       window.location.href = data.url;
     } catch (error) {
       console.error('Erreur lors de la connexion Discord:', error);
       alert('Erreur de connexion. Veuillez réessayer.');
     }
   };
-
 
   const features = [
     {
