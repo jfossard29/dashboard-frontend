@@ -50,7 +50,7 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
   const fetchItems = async () => {
     try {
       const data = await itemService.getObjets(serverId);
-      setItems(data.body || data);
+      setItems(data.body || data || []);
       setLoading(false);
     } catch (error) {
       showPopup('Erreur lors du chargement : '+error, 'error');
@@ -67,16 +67,17 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
 
   const toggleFilter = (type) => setFilters(prev => ({ ...prev, [type]: !prev[type] }));
 
-  const filteredAndSortedItems = items
+  const filteredAndSortedItems = (items || [])
       .filter(item =>
+          item &&
           filters[item.type] &&
           (item.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
               item.type?.toLowerCase().includes(searchTerm.toLowerCase()))
       )
       .sort((a, b) => {
         switch (sortBy) {
-          case 'nom': return a.nom.localeCompare(b.nom);
-          case 'type': return a.type.localeCompare(b.type);
+          case 'nom': return (a.nom || "").localeCompare(b.nom || "");
+          case 'type': return (a.type || "").localeCompare(b.type || "");
           case 'rarete': return getRarityOrder(b.rarete) - getRarityOrder(a.rarete);
           default: return 0;
         }
@@ -109,6 +110,7 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
     if (editedItem.type !== originalItem.type) changes.type = editedItem.type;
     if (editedItem.rarete !== originalItem.rarete) changes.rarete = editedItem.rarete;
     if (editedItem.icone !== originalItem.icone) changes.icone = editedItem.icone;
+    if (editedItem.partie !== originalItem.partie) changes.partie = editedItem.partie;
     const originalStats = JSON.stringify(originalItem.statistique || {});
     const editedStats = JSON.stringify(editedItem.statistique || {});
     if (originalStats !== editedStats) changes.statistique = editedItem.statistique || {};
@@ -130,6 +132,7 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
           type: editedItem.type,
           rarete: editedItem.rarete,
           icone: editedItem.icone,
+          partie: editedItem.partie,
           statistique: editedItem.statistique || {},
           idServeur: serverId
         };
@@ -181,6 +184,7 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
       description: "Description de l'objet",
       type: 'EQUIPEMENT',
       rarete: 'COMMON',
+      partie: 'tete',
       statistique: {},
       icone: '⚔️',
       idServeur: serverId
@@ -217,7 +221,18 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
   // modifications de champs/statistiques utilisées par ItemEditorModal
   const updateField = (field, value) => setEditedItem(prev => ({ ...prev, [field]: value }));
 
-  const addStat = () => setEditedItem(prev => ({ ...prev, statistique: { ...(prev?.statistique || {}), 'Nouvelle stat': 'Valeur' } }));
+  const addStat = () => {
+    setEditedItem(prev => {
+      const stats = prev?.statistique || {};
+      let newKey = 'Nouvelle stat';
+      let i = 1;
+      while (Object.prototype.hasOwnProperty.call(stats, newKey)) {
+        newKey = `Nouvelle stat ${i}`;
+        i++;
+      }
+      return { ...prev, statistique: { ...stats, [newKey]: 'Valeur' } };
+    });
+  };
 
   const updateStat = (oldKey, newKey, value) => {
     const newStats = { ...(editedItem.statistique || {}) };

@@ -4,6 +4,8 @@ import * as LucideIcons from 'lucide-react';
 import { rarityTranslations, typeTranslations } from '../traduction/objet';
 import { rarityColors } from '../data/objet';
 import EmojiIconPicker from "./EmojiIconPicker.jsx";
+import TypeDropdown from './TypeDropdown.jsx';
+import { getIconUrl } from '../data/icons.js';
 
 const ItemEditorModal = ({
                              item,
@@ -28,8 +30,33 @@ const ItemEditorModal = ({
     };
     const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
+    const standardParts = [
+        { value: 'tete', label: 'Tête' },
+        { value: 'torse', label: 'Torse' },
+        { value: 'pieds', label: 'Pieds' },
+        { value: 'deux_mains', label: 'Deux mains' },
+        { value: 'main_droite', label: 'Main droite' },
+        { value: 'main_gauche', label: 'Main gauche' },
+        { value: 'accessoire1', label: 'Accessoire 1' },
+        { value: 'accessoire2', label: 'Accessoire 2' }
+    ];
+
     const renderIcon = (iconName) => {
         if (!iconName) return '📦';
+        
+        // On essaie de résoudre l'URL si c'est un nom de fichier SVG
+        const iconUrl = getIconUrl(iconName);
+        
+        // Check for image file extensions or URLs
+        if (typeof iconUrl === 'string' && (
+            iconUrl.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i) || 
+            iconUrl.startsWith('http') || 
+            iconUrl.startsWith('/') ||
+            iconUrl.startsWith('data:')
+        )) {
+            return <img src={iconUrl} alt="" className="w-full h-full object-contain" />;
+        }
+
         if (iconName.length <= 2) return iconName;
         const IconComponent = LucideIcons[iconName];
         if (IconComponent) return <IconComponent size={24} className="text-white" />;
@@ -40,8 +67,40 @@ const ItemEditorModal = ({
         updateField('icone', selectedIcon);
     };
 
+    const handlePartieChange = (value) => {
+        // Autorise les lettres, chiffres, accents, underscore ET les espaces (\s).
+        const sanitizedValue = value.replace(/[^a-zA-Z0-9_À-ÿ\s]/g, '');
+        updateField('partie', sanitizedValue);
+    };
+
+    const rarityOptions = rarities.map(r => ({ value: r, label: rarityTranslations[r] }));
+    const itemTypeOptions = itemTypes.map(t => ({ value: t, label: typeTranslations[t] }));
+    const partieOptions = standardParts.map(p => ({ value: p.value, label: p.label }));
+    partieOptions.push({ value: 'autre', label: 'Autre...' });
+
+    // Calculs pour les limites
+    const statsCount = Object.keys(item.statistique || {}).length;
+    const maxStats = 10;
+    const maxNameLength = 25;
+    const maxPartieLength = 25;
+    const maxDescLength = 150;
+
+    // Helper to determine effective partie (default to 'tete' if undefined/null)
+    const effectivePartie = item.partie ?? 'tete';
+
+    // Determine title based on context
+    let modalTitle = "MODIFICATION D'UN OBJET";
+    if (!item.id) {
+        // Creation mode
+        if (item.prive) {
+            modalTitle = "CREATION D'UN OBJET UNIQUE UN PERSONNAGE";
+        } else {
+            modalTitle = "CREATION D'UN OBJET";
+        }
+    }
+
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-8">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 md:p-8">
             <div className="relative max-w-4xl w-full">
                 <div className={`absolute -inset-4 bg-gradient-to-r ${colors.glow} rounded-3xl opacity-30 blur-3xl animate-pulse`}></div>
 
@@ -51,7 +110,7 @@ const ItemEditorModal = ({
                             <div className="flex items-center gap-3">
                                 <Flame className={`${colors.text} animate-pulse`} size={32} />
                                 <h2 className={`text-3xl font-bold bg-gradient-to-r ${colors.glow} bg-clip-text text-transparent`}>
-                                    MODIFICATION D'UN OBJET
+                                    {modalTitle}
                                 </h2>
                             </div>
                             <button onClick={onCancel} className="text-gray-400 hover:text-white hover:rotate-90 transition-all">
@@ -59,74 +118,117 @@ const ItemEditorModal = ({
                             </button>
                         </div>
 
-                        {/* Rareté & Type */}
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-4`}>
-                                <label className={`block ${colors.text} text-xs font-bold mb-2 uppercase tracking-wider`}>Rareté</label>
-                                <select
-                                    value={item.rarete}
-                                    onChange={(e) => updateField('rarete', e.target.value)}
-                                    className={`w-full bg-gray-950/50 border-2 ${colors.borderFocus} rounded-lg px-4 py-2 text-white font-bold outline-none transition-all`}
-                                >
-                                    {rarities.map(r => (
-                                        <option key={r} value={r}>{rarityTranslations[r]}</option>
-                                    ))}
-                                </select>
-                            </div>
+                        {/* Rareté, Type & Partie */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <TypeDropdown
+                                value={item.rarete}
+                                onChange={(val) => updateField('rarete', val)}
+                                options={rarityOptions}
+                                colors={{ bg: colors.bg, border: colors.border, borderFocus: colors.borderFocus, textColor: colors.text }}
+                                label="Rareté"
+                            />
 
-                            <div className="bg-gradient-to-br from-blue-900/40 to-blue-800/20 border-2 border-blue-500/50 rounded-xl p-4">
-                                <label className="block text-blue-300 text-xs font-bold mb-2 uppercase tracking-wider">Type</label>
-                                <select
-                                    value={item.type}
-                                    onChange={(e) => updateField('type', e.target.value)}
-                                    className="w-full bg-blue-950/50 border-2 border-blue-500/30 focus:border-blue-500 rounded-lg px-4 py-2 text-white font-bold outline-none transition-all"
-                                >
-                                    {itemTypes.map(t => (
-                                        <option key={t} value={t}>{typeTranslations[t]}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <TypeDropdown
+                                value={item.type}
+                                onChange={(val) => {
+                                    updateField('type', val);
+                                    // Default to 'tete' if switching to EQUIPEMENT and partie is not set
+                                    if (val === 'EQUIPEMENT' && (item.partie === undefined || item.partie === null)) {
+                                        updateField('partie', 'tete');
+                                    }
+                                }}
+                                options={itemTypeOptions}
+                                colors={{ bg: 'from-blue-900/40 to-blue-800/20', border: 'border-blue-500/50', borderFocus: 'border-blue-500', textColor: 'text-blue-300' }}
+                                label="Type"
+                            />
+                            
+                            {item.type === 'EQUIPEMENT' && (
+                                <TypeDropdown
+                                    value={standardParts.some(p => p.value === effectivePartie) ? effectivePartie : 'autre'}
+                                    onChange={(val) => {
+                                        if (val === 'autre') {
+                                            updateField('partie', ''); // Clear for custom input
+                                        } else {
+                                            updateField('partie', val);
+                                        }
+                                    }}
+                                    options={partieOptions}
+                                    colors={{ bg: 'from-green-900/40 to-green-800/20', border: 'border-green-500/50', borderFocus: 'border-green-500', textColor: 'text-green-300' }}
+                                    label="Partie"
+                                />
+                            )}
                         </div>
-
-                        {/* Nom & Icône */}
-                        <div className="grid grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-orange-400 text-sm font-bold mb-2 uppercase tracking-wider">Nom</label>
+                        
+                        {item.type === 'EQUIPEMENT' && !standardParts.some(p => p.value === effectivePartie) && (
+                             <div className="mt-[-1rem] mb-6">
+                                <div className="flex justify-between mb-2">
+                                    <label className="block text-green-400 text-sm font-bold uppercase tracking-wider">Partie Personnalisée</label>
+                                    <span className={`text-xs ${item.partie?.length >= maxPartieLength ? 'text-red-400' : 'text-gray-500'}`}>
+                                        {item.partie?.length || 0}/{maxPartieLength}
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
-                                    value={item.nom}
+                                    value={item.partie || ''}
+                                    maxLength={maxPartieLength}
+                                    onChange={(e) => handlePartieChange(e.target.value)}
+                                    className="w-full bg-gray-800/50 border-2 border-green-500/30 focus:border-green-500 rounded-lg px-4 py-2 text-white outline-none transition-all"
+                                    placeholder="Artéfact sacré"
+                                />
+                            </div>
+                        )}
+
+
+                        {/* Nom & Icône */}
+                        <div className="flex gap-6">
+                            <div className="flex-1">
+                                <div className="flex justify-between mb-2">
+                                    <label className="block text-orange-400 text-sm font-bold uppercase tracking-wider">Nom</label>
+                                    <span className={`text-xs ${item.nom?.length >= maxNameLength ? 'text-red-400' : 'text-gray-500'}`}>
+                                        {item.nom?.length || 0}/{maxNameLength}
+                                    </span>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={item.nom || ''}
+                                    maxLength={maxNameLength}
                                     onChange={(e) => updateField('nom', e.target.value)}
                                     className="w-full bg-gray-800/50 border-2 border-orange-500/30 focus:border-orange-500 rounded-lg px-4 py-3 text-white text-lg font-bold outline-none transition-all"
                                 />
                             </div>
-                            <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-4`}>
+                            <div>
                                 <label className={`block ${colors.text} text-xs font-bold mb-2 uppercase tracking-wider`}>
                                     Icône
                                 </label>
                                 <div className="flex items-center gap-2">
-                                    <div className={`w-12 h-12 ${colors.text} rounded-lg flex items-center justify-center`}>
-                                        {renderIcon(item.icone)}
-                                    </div>
                                     <button
                                         type="button"
                                         onClick={() => setIsIconPickerOpen(true)}
-                                        className={`px-4 py-2 bg-gray-950/50 border-2 ${colors.borderFocus} rounded-lg text-white font-bold hover:bg-gray-900 transition-all`}
+                                        className={`w-14 h-14 rounded-lg flex items-center justify-center border-2 ${colors.borderFocus} bg-gradient-to-br ${colors.card} shadow-lg transition-all overflow-hidden`}
                                     >
-                                        Choisir une icône
+                                        {renderIcon(item.icone)}
                                     </button>
                                 </div>
                                 <EmojiIconPicker
                                     isOpen={isIconPickerOpen}
                                     onClose={() => setIsIconPickerOpen(false)}
                                     onSelect={handleIconSelect}
+                                    cardColor={colors.card}
+                                    borderColor={colors.borderFocus}
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-pink-400 text-sm font-bold mb-2 uppercase tracking-wider">Description</label>
+                            <div className="flex justify-between mb-2">
+                                <label className="block text-pink-400 text-sm font-bold uppercase tracking-wider">Description</label>
+                                <span className={`text-xs ${item.description?.length >= maxDescLength ? 'text-red-400' : 'text-gray-500'}`}>
+                                    {item.description?.length || 0}/{maxDescLength}
+                                </span>
+                            </div>
                             <textarea
-                                value={item.description}
+                                value={item.description || ''}
+                                maxLength={maxDescLength}
                                 onChange={(e) => updateField('description', e.target.value)}
                                 rows={3}
                                 className="w-full bg-gray-800/50 border-2 border-pink-500/30 focus:border-pink-500 rounded-lg px-4 py-2 text-white outline-none transition-all resize-none"
@@ -138,9 +240,15 @@ const ItemEditorModal = ({
                             <div className="flex justify-between items-center mb-4">
                                 <label className={`${colors.text} text-sm font-bold uppercase tracking-wider flex items-center gap-2`}>
                                     <Star className="animate-spin" size={16} />
-                                    Statistiques
+                                    Statistiques <span className="text-gray-500 text-xs ml-2">({statsCount}/{maxStats})</span>
                                 </label>
-                                <button onClick={addStat} className={`bg-gradient-to-r ${colors.glow} text-white px-4 py-2 rounded-lg text-sm font-bold hover:scale-105 transition-transform`}>
+                                <button 
+                                    onClick={addStat} 
+                                    disabled={statsCount >= maxStats}
+                                    className={`bg-gradient-to-r ${colors.glow} text-white px-4 py-2 rounded-lg text-sm font-bold transition-transform ${
+                                        statsCount >= maxStats ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
+                                    }`}
+                                >
                                     <Plus size={16} className="inline" /> Ajouter
                                 </button>
                             </div>
@@ -156,18 +264,26 @@ const ItemEditorModal = ({
                                             >
                                                 <X size={12} />
                                             </button>
-                                            <input
-                                                type="text"
-                                                value={key}
-                                                onChange={(e) => updateStat(key, e.target.value, value)}
-                                                className={`w-full bg-transparent border-0 ${colors.text} text-xs font-bold mb-2 outline-none uppercase`}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={value}
-                                                onChange={(e) => updateStat(key, key, e.target.value)}
-                                                className="w-full bg-transparent border-0 text-white text-sm font-bold outline-none"
-                                            />
+                                            <div className="space-y-2">
+                                                <input
+                                                    type="text"
+                                                    defaultValue={key}
+                                                    onBlur={(e) => {
+                                                        if (e.target.value !== key) {
+                                                            updateStat(key, e.target.value, value);
+                                                        }
+                                                    }}
+                                                    className={`w-full bg-gray-900/50 border border-gray-600 rounded px-2 py-1 ${colors.text} text-xs font-bold outline-none uppercase focus:border-blue-500`}
+                                                    placeholder="NOM STAT"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={value}
+                                                    onChange={(e) => updateStat(key, key, e.target.value)}
+                                                    className="w-full bg-gray-900/50 border border-gray-600 rounded px-2 py-1 text-white text-sm font-bold outline-none focus:border-green-500"
+                                                    placeholder="VALEUR"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

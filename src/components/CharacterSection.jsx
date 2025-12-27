@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, AlignLeft, List } from "lucide-react";
 import TypeDropdown from "./TypeDropdown.jsx";
 
 const CharacterSection = ({
@@ -15,14 +15,21 @@ const CharacterSection = ({
                               onListItemRemove,
                               renderIcon
                           }) => {
+    
+    // Options pour le dropdown de type de section
+    const sectionTypeOptions = [
+        { value: "DESCRIPTION", label: "Description" },
+        { value: "LISTE", label: "Liste" }
+    ];
+
     return (
-        <div className="bg-gray-800/40 p-6 rounded-xl border border-gray-700/30">
+        <div className="bg-gray-800/40 p-6 rounded-xl border border-gray-700/30 relative">
             <div className="flex items-center mb-4 gap-3">
                 {editMode && !section.obligatoire ? (
                     <>
                         <button
                             onClick={onIconClick}
-                            className="hover:scale-110 transition-transform cursor-pointer bg-gray-700/50 hover:bg-orange-500/20 rounded-lg p-2 border-2 border-dashed border-gray-600 hover:border-orange-400 flex items-center justify-center w-12 h-12"
+                            className="hover:scale-110 transition-transform cursor-pointer bg-gray-700/50 hover:bg-orange-500/20 rounded-lg p-2 border-2 border-dashed border-gray-600 hover:border-orange-400 flex items-center justify-center w-12 h-12 flex-shrink-0 overflow-hidden"
                             title="Cliquez pour changer l'emoji"
                             type="button"
                         >
@@ -41,14 +48,26 @@ const CharacterSection = ({
                                 const newName = e.target.value;
                                 onNameChange(section.id, newName); // Mise à jour pendant la saisie
                             }}
-                            className="text-xl font-semibold bg-gray-700 border border-gray-600 px-3 py-1 rounded-lg text-gray-200 flex-1"
+                            className="text-xl font-semibold bg-gray-700 border border-gray-600 px-3 py-1 rounded-lg text-gray-200 flex-1 min-w-0"
                         />
-                        <TypeDropdown section={section} onTypeChange={onTypeChange} />
-
+                        <div className="w-48">
+                            <TypeDropdown 
+                                value={section.type} 
+                                onChange={(newType) => onTypeChange(section.id, newType)}
+                                options={sectionTypeOptions}
+                                label="Type"
+                                colors={{
+                                    bg: 'from-gray-700 to-gray-800',
+                                    border: 'border-gray-600',
+                                    borderFocus: 'border-gray-500',
+                                    textColor: 'text-gray-300'
+                                }}
+                            />
+                        </div>
                     </>
                 ) : (
                     <>
-                        <div className="flex items-center justify-center w-12 h-12">
+                        <div className="flex items-center justify-center w-12 h-12 flex-shrink-0 overflow-hidden">
                             {renderIcon(section.icone)}
                         </div>
                         <h2 className="text-xl font-semibold text-gray-200">{section.titre}</h2>
@@ -75,7 +94,7 @@ const CharacterSection = ({
                     {editMode ? (
                         <>
                             {(section.contenu || []).map((item) => (
-                                <div className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
+                                <div key={item.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
                                     <div className="flex gap-3 mb-2">
                                         <input
                                             type="text"

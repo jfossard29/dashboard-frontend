@@ -4,11 +4,20 @@ import '../Scrollbar.css';
 import PageHeader from "../components/PageHeader.jsx";
 import personnageService from "../services/personnageService.js";
 import Popup from "../components/Popup.jsx";
+import AlertConfirmation from "../components/AlertConfirmation.jsx";
 
-const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId }) => {
+const FALLBACK_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+     <rect width="64" height="64" fill="transparent"/>
+     <text x="50%" y="55%" font-size="36" text-anchor="middle" dominant-baseline="middle" fill="#FB923C">?</text>
+   </svg>`
+);
+
+const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId, userId }) => {
   const [characters, setCharacters] = useState([]);
   const [copiedCreator, setCopiedCreator] = useState(null);
   const [popup, setPopup] = useState({ message: '', type: '' });
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     if (serverId) fetchCharacters();
@@ -22,7 +31,7 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId 
       setCharacters(data.body);
       const formattedCharacters = data.body.map((character) => ({
         id: character.id,
-        name: `${character.prenom} ${character.nom}`,
+        name: `${character.prenom} ${character.nom ? character.nom : ''}`,
         image: character.image,
         summary: character.resume,
         level: character.niveau || 1,
@@ -81,6 +90,48 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId 
     return user?.username || "https://i.imgur.com/0000000.png";
 
   }
+
+  const handleNewCharacter = () => {
+      setIsCreateModalOpen(true);
+  };
+
+  const handleCreateConfirm = async (prenom) => {
+      if (!prenom) return;
+
+      try {
+          const payload = {
+              idServeur: serverId,
+              idUtilisateur: userId,
+              prenom: prenom,
+              nom: null,
+              image: null,
+              resume: null,
+              niveau: 1,
+              experience: 0.0,
+              monnaie: 0.0,
+              vie: 1.0,
+              vieMax: 1.0,
+              energie: 1.0,
+              energieMax: 1.0,
+              derniereModif: new Date().toISOString(),
+              histoire: null,
+              rubriques: []
+          };
+
+          const response = await personnageService.createPersonnage(payload);
+          
+          if (response.code === 200) {
+              showPopup("Personnage créé avec succès !", "success");
+              fetchCharacters(); // Rafraîchir la liste
+          } else {
+              showPopup(response.message || "Erreur lors de la création", "error");
+          }
+      } catch (error) {
+          console.error("Erreur création personnage:", error);
+          showPopup("Erreur réseau lors de la création", "error");
+      }
+  };
+
   return (
       <>
         <div className="flex justify-between items-center mt-2">
@@ -96,7 +147,7 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId 
       <div className="flex-shrink-0 p-6 pb-0">
         <PageHeader
             currentPage="Personnage"
-            onButtonClick={null}
+            onButtonClick={handleNewCharacter}
             loading={null}
         />
 
@@ -123,9 +174,13 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId 
             >
               <div className="relative mb-4">
                 <img
-                  src={character.image}
+                  src={character.image || FALLBACK_SVG}
                   alt={character.name}
                   className="w-24 h-24 rounded-2xl object-cover border-3 border-gradient-to-r from-orange-400 to-red-500 shadow-lg mb-4 object-top"
+                  onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = FALLBACK_SVG;
+                  }}
                 />
                 <div className="absolute -top-2 -right-2 group/creator">
                   <img
@@ -171,6 +226,17 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId 
         </div>
       </div>
         <Popup message={popup.message} type={popup.type} onClose={closePopup} />
+        
+        <AlertConfirmation
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+            onConfirm={handleCreateConfirm}
+            title="Nouveau Personnage"
+            message="Entrez le prénom de votre nouveau personnage."
+            type="input"
+            inputPlaceholder="Prénom du personnage"
+            confirmText="Créer"
+        />
       </>
   );
 };

@@ -153,7 +153,9 @@ const ServerPage = ({ user, onLogout, onUpdateUser }) => {
                 onLogout={onLogout}
             />
 
-            <div className="flex-1 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ml-20 h-screen overflow-y-auto pt-20 px-6 pb-6 scrollbar-custom">
+            {/* Contenu principal */}
+            {/* Si on est sur la page de détail, on enlève le scroll du conteneur parent pour laisser DetailPage gérer son scroll */}
+            <div className={`flex-1 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 ml-20 h-screen pt-20 px-6 pb-6 scrollbar-custom ${currentPage === 'detail' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
                 {/* Page d'accueil du serveur */}
                 {currentPage === "home" && (
                     <>
@@ -279,7 +281,7 @@ const ServerPage = ({ user, onLogout, onUpdateUser }) => {
 
                 {/* Pages spécifiques (Forum, Détails, Objets, Configuration) */}
                 {currentPage === "forum" && (
-                    <ForumPage onSelectCharacterId={setCharacterId} serverId={serverId} members={currentServer?.members} onNavigate={setCurrentPage} onBack={() => setCurrentPage('home') } />
+                    <ForumPage onSelectCharacterId={setCharacterId} serverId={serverId} members={currentServer?.members} onNavigate={setCurrentPage} onBack={() => setCurrentPage('home') } userId={user.id} />
                 )}
 
                 {currentPage === "detail" && (

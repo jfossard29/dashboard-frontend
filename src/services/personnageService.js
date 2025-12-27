@@ -14,7 +14,7 @@ const personnageService = {
      */
     updatePersonnage: async (personnageId, changes) => {
         return fetchAPI(`/personnage/${personnageId}`, {
-            method: 'PATCH',
+            method: 'PUT', // Changed from PATCH to PUT as a workaround for potential CORS issues
             body: JSON.stringify(changes),
         });
     },
@@ -24,6 +24,16 @@ const personnageService = {
      */
     getPersonnageListe: async (serverId) => {
         return fetchAPI(`/personnage/liste/${serverId}`);
+    },
+
+    /**
+     * Crée un nouveau personnage
+     */
+    createPersonnage: async (payload) => {
+        return fetchAPI(`/personnage`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
     },
 };
 

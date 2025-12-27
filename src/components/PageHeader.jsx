@@ -1,4 +1,3 @@
-// PageHeader.jsx
 import { Loader2, Plus } from "lucide-react";
 
 
@@ -17,7 +16,7 @@ const pages = {
 
 const PageHeader = ({
                         currentPage,
-                        onAddItem,
+                        onButtonClick,
                         isAddingDisabled = false, // Nouveau prop pour la condition de désactivation
                         loading = false
                          }) => {
@@ -33,9 +32,9 @@ const PageHeader = ({
             </div>
 
             <button
-                onClick={onAddItem}
+                onClick={onButtonClick}
                 disabled={loading || isAddingDisabled}
-                title={isAddingDisabled ? "Action non disponible pour le moment" : "Ajouter un nouvel objet"}
+                title={isAddingDisabled ? "Action non disponible pour le moment" : pages[currentPage].bouton}
                 className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-3 rounded-xl transition-all duration-200 flex items-center space-x-2 shadow-lg transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {loading ? (

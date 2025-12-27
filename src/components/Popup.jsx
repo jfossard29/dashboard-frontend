@@ -51,7 +51,7 @@ const Popup = ({ message, type, onClose }) => {
     const style = getPopupStyle();
 
     return (
-        <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 transform ${
+        <div className={`fixed bottom-6 right-6 z-[9999] transition-all duration-300 transform ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
         }`}>
             <div className={`${style.bg} ${style.border} border backdrop-blur-sm rounded-xl p-4 shadow-2xl min-w-80 max-w-96`}>
