@@ -1,5 +1,9 @@
-import React from "react";
-import { ChevronUp, ChevronDown, Minus, Plus } from "lucide-react";
+import React, { useState } from "react";
+import { ChevronUp, ChevronDown, Minus, Plus, Trash2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import AlertConfirmation from "./AlertConfirmation";
+import personnageService from "../services/personnageService.js";
+import { useNavigate } from "react-router-dom";
 
 const FALLBACK_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -14,14 +18,40 @@ const CharacterHeader = ({
                              onImageClick,
                              imageWrapperRef
                          }) => {
+    const navigate = useNavigate();
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     
     const handleLevelChange = (delta) => {
         const newLevel = Math.max(1, (character.level || 1) + delta);
         onFieldChange("level", newLevel);
     };
 
+    const handleDeleteCharacter = async () => {
+        try {
+            await personnageService.deletePersonnage(character.id);
+            // Redirection vers la page du serveur après suppression
+            // On utilise window.location pour forcer un rechargement complet et éviter les problèmes de cache
+            window.location.href = `/dashboard/server/${character.idServer}`;
+        } catch (error) {
+            console.error("Erreur lors de la suppression du personnage:", error);
+            alert("Erreur lors de la suppression du personnage");
+        }
+    };
+
     return (
         <div className="relative p-8 bg-gradient-to-r from-orange-500/20 to-red-500/20">
+            {/* Bouton de suppression en mode édition */}
+            {editMode && (
+                <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="absolute bottom-4 right-4 p-3 bg-gray-900/90 backdrop-blur-sm border border-red-500/50 text-red-500 hover:bg-red-600 hover:text-white rounded-xl transition-all duration-200 z-20 shadow-lg hover:shadow-red-500/20 flex items-center gap-2 group"
+                    title="Supprimer le personnage"
+                >
+                    <Trash2 size={20} />
+                    <span className="font-bold text-sm hidden group-hover:inline">Supprimer</span>
+                </button>
+            )}
+
             <div className="flex items-start space-x-6">
                 {/* IMAGE WRAPPER */}
                 <div
@@ -59,24 +89,60 @@ const CharacterHeader = ({
                 {/* Infos personnage */}
                 <div className="flex-1">
                     {editMode ? (
-                        <div className="flex space-x-4 mb-2">
-                            <input
-                                value={character.prenom}
-                                onChange={(e) => onFieldChange("prenom", e.target.value)}
-                                className="text-4xl font-bold bg-gray-800 border border-gray-700 px-3 py-1 rounded-lg text-orange-400 w-1/2"
-                                placeholder="Prénom"
-                            />
-                            <input
-                                value={character.nom}
-                                onChange={(e) => onFieldChange("nom", e.target.value)}
-                                className="text-4xl font-bold bg-gray-800 border border-gray-700 px-3 py-1 rounded-lg text-orange-400 w-1/2"
-                                placeholder="Nom"
-                            />
+                        <div className="flex flex-col gap-4">
+                            <div className="flex space-x-4">
+                                <input
+                                    value={character.prenom || ""}
+                                    onChange={(e) => onFieldChange("prenom", e.target.value)}
+                                    className="text-4xl font-bold bg-gray-800 border border-gray-700 px-3 py-1 rounded-lg text-orange-400 w-1/2"
+                                    placeholder="Prénom"
+                                />
+                                <input
+                                    value={character.nom || ""}
+                                    onChange={(e) => onFieldChange("nom", e.target.value)}
+                                    className="text-4xl font-bold bg-gray-800 border border-gray-700 px-3 py-1 rounded-lg text-orange-400 w-1/2"
+                                    placeholder="Nom"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <input
+                                    value={character.classe || ""}
+                                    onChange={(e) => onFieldChange("classe", e.target.value)}
+                                    className="bg-gray-800 border border-gray-700 px-3 py-2 rounded-lg text-white placeholder-gray-500"
+                                    placeholder="Classe"
+                                />
+                                <input
+                                    value={character.race || ""}
+                                    onChange={(e) => onFieldChange("race", e.target.value)}
+                                    className="bg-gray-800 border border-gray-700 px-3 py-2 rounded-lg text-white placeholder-gray-500"
+                                    placeholder="Race"
+                                />
+                                <input
+                                    value={character.historique || ""}
+                                    onChange={(e) => onFieldChange("historique", e.target.value)}
+                                    className="bg-gray-800 border border-gray-700 px-3 py-2 rounded-lg text-white placeholder-gray-500"
+                                    placeholder="Historique"
+                                />
+                                <input
+                                    value={character.alignement || ""}
+                                    onChange={(e) => onFieldChange("alignement", e.target.value)}
+                                    className="bg-gray-800 border border-gray-700 px-3 py-2 rounded-lg text-white placeholder-gray-500"
+                                    placeholder="Alignement"
+                                />
+                            </div>
                         </div>
                     ) : (
-                        <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-2">
-                            {character.prenom} {character.nom}
-                        </h1>
+                        <>
+                            <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 mb-2">
+                                {character.prenom} {character.nom || ""}
+                            </h1>
+                            <div className="text-gray-300 text-lg mb-2 flex flex-wrap gap-2">
+                                {character.race && <span>{character.race}</span>}
+                                {character.classe && <span>• {character.classe}</span>}
+                                {character.historique && <span>• {character.historique}</span>}
+                                {character.alignement && <span>• {character.alignement}</span>}
+                            </div>
+                        </>
                     )}
 
                     <div className="flex items-center space-x-6 mb-4 mt-4">
@@ -130,6 +196,18 @@ const CharacterHeader = ({
                     </div>
                 </div>
             </div>
+
+            {createPortal(
+                <AlertConfirmation
+                    isOpen={showDeleteConfirm}
+                    onClose={() => setShowDeleteConfirm(false)}
+                    onConfirm={handleDeleteCharacter}
+                    title="Supprimer le personnage"
+                    message={`Êtes-vous sûr de vouloir supprimer définitivement ce personnage ? Cette action est irréversible.`}
+                    type="danger"
+                />,
+                document.body
+            )}
         </div>
     );
 };

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, X, Plus } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useParams } from 'react-router-dom';
+import itemService from "../services/objetService.js";
+import { getIconUrl } from '../data/icons.js';
 
 const ItemBankModal = ({ isOpen, onClose, onSelect, serverId }) => {
     const [items, setItems] = useState([]);
@@ -16,18 +18,10 @@ const ItemBankModal = ({ isOpen, onClose, onSelect, serverId }) => {
                 
                 const fetchItems = async () => {
                     try {
-                        const response = await fetch(`http://localhost:8080/objet/liste/${effectiveServerId}`, {
-                            method: 'GET',
-                            credentials: 'include',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json'
-                            },
-                        });
-                        const data = await response.json();
+                        const data = await itemService.getObjets(effectiveServerId);
                         
-                        if (data.code === 200) {
-                            setItems(data.body);
+                        if (data.code === 200 || Array.isArray(data.body) || Array.isArray(data)) {
+                            setItems(data.body || data);
                         } else {
                             console.error("Failed to fetch items:", data);
                         }
@@ -45,14 +39,20 @@ const ItemBankModal = ({ isOpen, onClose, onSelect, serverId }) => {
 
     const renderIcon = (iconName) => {
         if (!iconName) return <span className="text-xl">📦</span>;
+        
+        // Résolution de l'URL si c'est un fichier local (ex: .svg)
+        const iconUrl = getIconUrl(iconName);
+
         // Check for image file extensions or URLs
-        if (typeof iconName === 'string' && (
-            iconName.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i) || 
-            iconName.startsWith('http') || 
-            iconName.startsWith('/')
+        if (typeof iconUrl === 'string' && (
+            iconUrl.match(/\.(png|jpg|jpeg|gif|webp|svg)$/i) || 
+            iconUrl.startsWith('http') || 
+            iconUrl.startsWith('/') ||
+            iconUrl.startsWith('data:')
         )) {
-            return <img src={iconName} alt="" className="w-8 h-8 object-cover rounded" />;
+            return <img src={iconUrl} alt="" className="w-8 h-8 object-cover rounded" />;
         }
+
         const IconComponent = LucideIcons[iconName];
         if (IconComponent) {
             return <IconComponent size={24} />;

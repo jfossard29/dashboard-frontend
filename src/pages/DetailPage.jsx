@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Edit2, Save, Backpack, User, RotateCcw } from "lucide-react";
+import { ArrowLeft, Edit2, Save, Backpack, User, RotateCcw, Swords } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import "../Scrollbar.css";
 import Popup from "../components/Popup.jsx";
@@ -11,10 +11,14 @@ import ImageViewModal from "../components/ImageViewModal";
 import CharacterHeader from "../components/CharacterHeader";
 import SectionsList from "../components/SectionsList";
 import CharacterInventory from "../components/CharacterInventory";
+import DnDPage from "./DnDPage";
 import {emojiSet, lucideSet} from "../data/emoji.js";
 import { getIconUrl } from "../data/icons.js";
+import personnageService from "../services/personnageService.js";
+import inventaireService from "../services/inventaireService.js";
+import equipementService from "../services/equipementService.js";
 
-const DetailPage = ({ characterId, serverId, onBack }) => {
+const DetailPage = ({ characterId, serverId, onBack, userId, isAdmin }) => {
     const [character, setCharacter] = useState(null);
     const [editedCharacter, setEditedCharacter] = useState(null);
     const [originalCharacter, setOriginalCharacter] = useState(null); // ✅ Pour détecter les changements
@@ -23,7 +27,7 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
     const [showUrlInput, setShowUrlInput] = useState(false);
     const [showEmojiPicker, setShowEmojiPicker] = useState(null);
     const [showImageModal, setShowImageModal] = useState(false);
-    const [activeTab, setActiveTab] = useState("details"); // "details" ou "inventory"
+    const [activeTab, setActiveTab] = useState("details"); // "details", "inventory", "dnd"
     const [lastId, setLastId] = useState(0);
     const [saving, setSaving] = useState(false);
     const [popup, setPopup] = useState({ message: '', type: '' });
@@ -31,6 +35,9 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
     // États pour la sauvegarde de l'inventaire
     const [inventorySaveStatus, setInventorySaveStatus] = useState({ hasChanges: false, isSaving: false });
     const inventoryRef = useRef(null);
+    
+    // Référence pour la sauvegarde D&D
+    const dndSaveRef = useRef(null);
 
     const imageWrapperRef = useRef(null);
     const imageMenuRef = useRef(null);
@@ -48,6 +55,7 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
 
         const fetchCharacter = async () => {
             try {
+                // Fetch character details
                 const response = await fetch(
                     `http://localhost:8080/personnage/${characterId}`, {
                         method: 'GET',
@@ -59,8 +67,21 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
                     });
                 const data = await response.json();
 
+                // Fetch D&D data
+                const dndResponse = await personnageService.getPersonnageData(characterId);
+                const dndData = dndResponse.body || {};
+
+                // Fetch Inventory data
+                const inventoryResponse = await inventaireService.getInventaire(characterId);
+                const inventoryData = inventoryResponse.body || [];
+
+                // Fetch Equipment data
+                const equipementResponse = await equipementService.getEquipement(characterId);
+                const equipementData = equipementResponse.body || {};
+
                 if (data.code === 200 && data.body) {
                     const c = data.body;
+                    const infos = c.infosPersonnage || {};
 
                     // Création de la section Histoire
                     const storySection = {
@@ -76,20 +97,25 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
                     const mappedCharacter = {
                         id: c.id,
                         idServer: c.idServeur,
-                        prenom: c.prenom,
-                        nom: c.nom,
+                        idUtilisateur: c.idUtilisateur,
+                        prenom: infos.prenom,
+                        nom: infos.nom,
+                        classe: infos.classe,
+                        historique: infos.historique,
+                        race: infos.race,
+                        alignement: infos.alignement,
                         image: c.image,
                         story: c.histoire, // On garde aussi ici pour référence
-                        level: c.niveau,
-                        experience: c.experience,
+                        level: infos.niveau,
+                        experience: infos.experience,
                         power: 0,
-                        vie: c.vie,
-                        vieMax: c.vieMax,
-                        energie: c.energie,
-                        energieMax: c.energieMax,
+                        vie: infos.vie,
+                        vieMax: infos.vieMax,
+                        energie: infos.energie,
+                        energieMax: infos.energieMax,
                         abilities: [],
-                        equipement: c.equipement,
-                        inventaire: c.inventaire,
+                        equipement: equipementData, // Utilisation des données d'équipement récupérées
+                        inventaire: inventoryData, // Utilisation des données d'inventaire récupérées
                         customSections: [
                             storySection,
                             ...(c.rubriques || []).map((r) => ({
@@ -102,6 +128,62 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
                                 obligatoire: r.obligatoire,
                             }))
                         ],
+                        // Mapping D&D Data
+                        stats: {
+                            force: dndData.statistiques?.force || 10,
+                            dexterite: dndData.statistiques?.dexterite || 10,
+                            constitution: dndData.statistiques?.constitution || 10,
+                            intelligence: dndData.statistiques?.intelligence || 10,
+                            sagesse: dndData.statistiques?.sagesse || 10,
+                            charisme: dndData.statistiques?.charisme || 10
+                        },
+                        savingThrows: {
+                            force: dndData.statistiques?.sauvegardeForce === 1,
+                            dexterite: dndData.statistiques?.sauvegardeDexterite === 1,
+                            constitution: dndData.statistiques?.sauvegardeConstitution === 1,
+                            intelligence: dndData.statistiques?.sauvegardeIntelligence === 1,
+                            sagesse: dndData.statistiques?.sauvegardeSagesse === 1,
+                            charisme: dndData.statistiques?.sauvegardeCharisme === 1
+                        },
+                        skills: {
+                            "Acrobaties": dndData.statistiqueCompetence?.acrobaties === 1,
+                            "Arcanes": dndData.statistiqueCompetence?.arcanes === 1,
+                            "Athlétisme": dndData.statistiqueCompetence?.athletisme === 1,
+                            "Discrétion": dndData.statistiqueCompetence?.discretion === 1,
+                            "Dressage": dndData.statistiqueCompetence?.dressage === 1,
+                            "Escamotage": dndData.statistiqueCompetence?.escamotage === 1,
+                            "Histoire": dndData.statistiqueCompetence?.histoire === 1,
+                            "Intimidation": dndData.statistiqueCompetence?.intimidation === 1,
+                            "Investigation": dndData.statistiqueCompetence?.investigation === 1,
+                            "Médecine": dndData.statistiqueCompetence?.medecine === 1,
+                            "Nature": dndData.statistiqueCompetence?.nature === 1,
+                            "Perception": dndData.statistiqueCompetence?.perception === 1,
+                            "Perspicacité": dndData.statistiqueCompetence?.perspicacite === 1,
+                            "Persuasion": dndData.statistiqueCompetence?.persuasion === 1,
+                            "Religion": dndData.statistiqueCompetence?.religion === 1,
+                            "Représentation": dndData.statistiqueCompetence?.representation === 1,
+                            "Supercherie": dndData.statistiqueCompetence?.supercherie === 1,
+                            "Survie": dndData.statistiqueCompetence?.survie === 1
+                        },
+                        monnaie: {
+                            pp: dndData.monnaie?.platine || 0,
+                            po: dndData.monnaie?.or || 0,
+                            pe: dndData.monnaie?.electrum || 0,
+                            pa: dndData.monnaie?.argent || 0,
+                            pc: dndData.monnaie?.cuivre || 0
+                        },
+                        ca: dndData.statistiques?.classeArmure || 10,
+                        initiative: dndData.statistiques?.initiative || 0,
+                        vitesse: dndData.statistiques?.vitesse || 30,
+                        desDeVie: dndData.statistiques?.deDeVie || "1d8",
+                        desDeVieRestants: dndData.statistiques?.deDeVieRestant || 1,
+                        bonusMaitrise: dndData.statistiques?.maitrise || 2,
+                        // TODO: Ajouter les notes/outils quand le backend le supportera
+                        notes: {
+                            outils: infos.noteMaitrise || "",
+                            autres: infos.autreMaitrise || "",
+                            traitsRaciaux: ""
+                        }
                     };
                     setLastId(Math.max(...(c.rubriques || []).map(r => r.id), 0));
                     setCharacter(mappedCharacter);
@@ -149,6 +231,10 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
         // Comparer les champs simples
         if (editedCharacter.prenom !== originalCharacter.prenom) changes.prenom = editedCharacter.prenom;
         if (editedCharacter.nom !== originalCharacter.nom) changes.nom = editedCharacter.nom;
+        if (editedCharacter.classe !== originalCharacter.classe) changes.classe = editedCharacter.classe;
+        if (editedCharacter.historique !== originalCharacter.historique) changes.historique = editedCharacter.historique;
+        if (editedCharacter.race !== originalCharacter.race) changes.race = editedCharacter.race;
+        if (editedCharacter.alignement !== originalCharacter.alignement) changes.alignement = editedCharacter.alignement;
         if (editedCharacter.image !== originalCharacter.image) changes.image = editedCharacter.image;
         if (editedCharacter.level !== originalCharacter.level) changes.niveau = editedCharacter.level;
         if (editedCharacter.experience !== originalCharacter.experience) changes.experience = editedCharacter.experience;
@@ -191,6 +277,10 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
         
         if (editedCharacter.prenom !== originalCharacter.prenom) return true;
         if (editedCharacter.nom !== originalCharacter.nom) return true;
+        if (editedCharacter.classe !== originalCharacter.classe) return true;
+        if (editedCharacter.historique !== originalCharacter.historique) return true;
+        if (editedCharacter.race !== originalCharacter.race) return true;
+        if (editedCharacter.alignement !== originalCharacter.alignement) return true;
         if (editedCharacter.image !== originalCharacter.image) return true;
         if (editedCharacter.level !== originalCharacter.level) return true;
         if (editedCharacter.experience !== originalCharacter.experience) return true;
@@ -203,7 +293,7 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
         return false;
     }, [editedCharacter, originalCharacter]);
 
-    const hasUnsavedChanges = activeTab === "details" ? hasDetailsChanges : inventorySaveStatus.hasChanges;
+    const hasUnsavedChanges = activeTab === "details" ? hasDetailsChanges : (activeTab === "inventory" ? inventorySaveStatus.hasChanges : true); // Pour D&D on suppose toujours qu'il peut y avoir des changements si on est en mode édition
 
     // ✅ Fonction de sauvegarde optimisée
     const saveChanges = async () => {
@@ -220,6 +310,54 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
             return;
         }
 
+        // Si on est sur l'onglet D&D, on délègue la sauvegarde
+        if (activeTab === "dnd") {
+            if (dndSaveRef.current) {
+                const success = await dndSaveRef.current();
+                if (success) {
+                    showPopup("Modifications D&D sauvegardées !", 'success');
+                    setEditMode(false);
+                    
+                    // Mise à jour de l'état local après sauvegarde D&D
+                    // On récupère les nouvelles données depuis le backend pour être sûr
+                    try {
+                        const dndResponse = await personnageService.getPersonnageData(characterId);
+                        const dndData = dndResponse.body || {};
+                        
+                        // On met à jour editedCharacter et originalCharacter avec les nouvelles données D&D
+                        // Note: Cette logique est simplifiée, idéalement on devrait fusionner proprement
+                        // Mais comme DnDPage gère son propre état interne, cela sert surtout si on change d'onglet
+                        setEditedCharacter(prev => ({
+                            ...prev,
+                            stats: {
+                                force: dndData.statistiques?.force || prev.stats.force,
+                                dexterite: dndData.statistiques?.dexterite || prev.stats.dexterite,
+                                constitution: dndData.statistiques?.constitution || prev.stats.constitution,
+                                intelligence: dndData.statistiques?.intelligence || prev.stats.intelligence,
+                                sagesse: dndData.statistiques?.sagesse || prev.stats.sagesse,
+                                charisme: dndData.statistiques?.charisme || prev.stats.charisme
+                            },
+                            // ... autres champs D&D si nécessaire
+                        }));
+                        
+                        // On met à jour originalCharacter pour refléter le nouvel état "propre"
+                        setOriginalCharacter(prev => {
+                            const newState = JSON.parse(JSON.stringify(prev));
+                            // On pourrait faire une fusion plus complète ici si nécessaire
+                            return newState;
+                        });
+                        
+                    } catch (error) {
+                        console.error("Erreur lors du rafraîchissement des données D&D:", error);
+                    }
+
+                } else {
+                    showPopup("Erreur lors de la sauvegarde D&D.", 'error');
+                }
+            }
+            return;
+        }
+
         const changes = getChangedFields();
 
         if (Object.keys(changes).length === 0) {
@@ -232,89 +370,46 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
         setSaving(true);
 
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-            const response = await fetch(`${apiUrl}/personnage/${characterId}`, {
-                method: 'PUT',
-                credentials: 'include',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(changes)
+            const promises = [];
+            const infosFields = ['prenom', 'nom', 'classe', 'historique', 'race', 'alignement', 'experience', 'niveau', 'vie', 'vieMax', 'energie', 'energieMax'];
+            const infosChanges = {};
+            const generalChanges = {};
+
+            Object.keys(changes).forEach(key => {
+                if (infosFields.includes(key)) {
+                    infosChanges[key] = changes[key];
+                } else {
+                    generalChanges[key] = changes[key];
+                }
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                console.log("Sauvegarde réussie:", data);
-                showPopup("Modifications sauvegardées avec succès !", 'success');
+            // 1. Sauvegarde des infos de base (infosPersonnage)
+            if (Object.keys(infosChanges).length > 0) {
+                promises.push(personnageService.updateInfosPersonnage(characterId, infosChanges));
+            }
 
-                // Mettre à jour les références
-                // Si le backend renvoie le personnage mis à jour avec les nouveaux IDs, il faudrait l'utiliser.
-                // Mais ici on suppose que data.body contient peut-être le personnage ou juste un succès.
-                // Si data.body est le personnage complet, on devrait l'utiliser pour mettre à jour les IDs.
+            // 2. Sauvegarde des autres champs (personnage racine)
+            if (Object.keys(generalChanges).length > 0) {
+                promises.push(personnageService.updatePersonnage(characterId, generalChanges));
+            }
+
+            const responses = await Promise.all(promises);
+            
+            // Vérification des erreurs
+            const errors = responses.filter(res => res.code !== 200);
+
+            if (errors.length === 0) {
+                // Mise à jour de l'état local pour refléter la sauvegarde
+                setOriginalCharacter(JSON.parse(JSON.stringify(editedCharacter)));
+                setCharacter(editedCharacter);
                 
-                if (data.body) {
-                     const c = data.body;
-                     
-                     // Recréation de la section histoire
-                     const storySection = {
-                        id: 'story',
-                        ordre: 0,
-                        titre: "Histoire",
-                        type: "DESCRIPTION",
-                        contenu: c.histoire || "",
-                        icone: "📜",
-                        obligatoire: true,
-                    };
-
-                     const mappedCharacter = {
-                        id: c.id,
-                        idServer: c.idServeur,
-                        prenom: c.prenom,
-                        nom: c.nom,
-                        image: c.image,
-                        story: c.histoire,
-                        level: c.niveau,
-                        experience: c.experience,
-                        power: 0,
-                        vie: c.vie,
-                        vieMax: c.vieMax,
-                        energie: c.energie,
-                        energieMax: c.energieMax,
-                        abilities: [],
-                        equipement: c.equipement,
-                        inventaire: c.inventaire,
-                        customSections: [
-                            storySection,
-                            ...(c.rubriques || []).map((r) => ({
-                                id: r.id,
-                                ordre: r.ordre,
-                                titre: r.titre,
-                                type: r.type,
-                                contenu: r.contenu,
-                                icone: r.icone,
-                                obligatoire: r.obligatoire,
-                            }))
-                        ],
-                    };
-                    setCharacter(mappedCharacter);
-                    setEditedCharacter(mappedCharacter);
-                    setOriginalCharacter(JSON.parse(JSON.stringify(mappedCharacter)));
-                    // Mettre à jour lastId pour éviter les conflits futurs
-                    const maxId = Math.max(...(c.rubriques || []).map(s => s.id), 0);
-                    setLastId(maxId);
-                } else {
-                    // Fallback si le backend ne renvoie pas l'objet
-                    setCharacter(editedCharacter);
-                    setOriginalCharacter(JSON.parse(JSON.stringify(editedCharacter)));
-                }
-
+                showPopup("Modifications sauvegardées avec succès !", 'success');
                 setEditMode(false);
                 setShowImageMenu(false);
                 setShowUrlInput(false);
                 setShowEmojiPicker(null);
             } else {
-                console.error("Erreur lors de la sauvegarde:", response.status);
+                console.error("Erreur lors de la sauvegarde:", errors);
                 showPopup("Erreur lors de la sauvegarde.", 'error');
             }
         } catch (error) {
@@ -539,6 +634,7 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
     }
 
     const isInventory = activeTab === "inventory";
+    const isDnD = activeTab === "dnd";
 
     // Détermine si le bouton de sauvegarde doit être désactivé
     const isSaveDisabled = isInventory
@@ -560,6 +656,9 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
         // Toujours rouge s'il est actif (pour quitter ou annuler)
         resetButtonClasses += "bg-red-600 hover:bg-red-700 text-white";
     }
+
+    // Vérification des droits d'édition
+    const canEdit = isAdmin || (userId && character.idUtilisateur === userId);
 
     return (
         <>
@@ -596,52 +695,66 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
                         <Backpack size={18} />
                         <span>Inventaire</span>
                     </button>
+                    <button
+                        onClick={() => setActiveTab("dnd")}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                            activeTab === "dnd"
+                                ? "bg-orange-500 text-white shadow-lg"
+                                : "text-gray-400 hover:text-white hover:bg-gray-700"
+                        }`}
+                    >
+                        <Swords size={18} />
+                        <span>Combat</span>
+                    </button>
                 </div>
 
                 {/* Bouton d'édition/sauvegarde */}
-                {(editMode || isInventory) ? (
-                    <div className="flex items-center gap-2">
+                {canEdit && (
+                    (editMode || isInventory) ? (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleCancel}
+                                disabled={isResetDisabled}
+                                className={resetButtonClasses}
+                                title={hasUnsavedChanges ? "Réinitialiser les modifications" : "Quitter le mode édition"}
+                            >
+                                <RotateCcw size={18} />
+                            </button>
+                            <button
+                                onClick={saveChanges}
+                                disabled={isSaveDisabled && !isDnD} // On active toujours pour DnD car on ne track pas les changements
+                                className={`flex items-center space-x-2 px-4 py-2 rounded-lg shadow transition-all duration-300 ${
+                                    (isSaveDisabled && !isDnD)
+                                        ? 'bg-gray-600 cursor-not-allowed opacity-50' 
+                                        : hasUnsavedChanges || isDnD
+                                            ? 'bg-green-600 hover:bg-green-700 shadow-[0_0_15px_rgba(34,197,94,0.6)] scale-105 ring-2 ring-green-400 animate-pulse'
+                                            : 'bg-gray-500 hover:bg-gray-600 text-gray-300'
+                                } text-white`}
+                            >
+                                <Save size={18} />
+                                <span>{saveButtonText}</span>
+                            </button>
+                        </div>
+                    ) : (
                         <button
-                            onClick={handleCancel}
-                            disabled={isResetDisabled}
-                            className={resetButtonClasses}
-                            title={hasUnsavedChanges ? "Réinitialiser les modifications" : "Quitter le mode édition"}
+                            onClick={() => {
+                                setEditMode(true);
+                                setShowImageMenu(false);
+                                setShowUrlInput(false);
+                            }}
+                            className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow"
                         >
-                            <RotateCcw size={18} />
+                            <Edit2 size={18} />
+                            <span>Éditer</span>
                         </button>
-                        <button
-                            onClick={saveChanges}
-                            disabled={isSaveDisabled}
-                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg shadow transition-all duration-300 ${
-                                isSaveDisabled 
-                                    ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-                                    : hasUnsavedChanges
-                                        ? 'bg-green-600 hover:bg-green-700 shadow-[0_0_15px_rgba(34,197,94,0.6)] scale-105 ring-2 ring-green-400 animate-pulse'
-                                        : 'bg-gray-500 hover:bg-gray-600 text-gray-300'
-                            } text-white`}
-                        >
-                            <Save size={18} />
-                            <span>{saveButtonText}</span>
-                        </button>
-                    </div>
-                ) : (
-                    <button
-                        onClick={() => {
-                            setEditMode(true);
-                            setShowImageMenu(false);
-                            setShowUrlInput(false);
-                        }}
-                        className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow"
-                    >
-                        <Edit2 size={18} />
-                        <span>Éditer</span>
-                    </button>
+                    )
                 )}
+                {!canEdit && <div className="w-[100px]"></div>} {/* Spacer pour alignement */}
             </div>
 
             {/* Contenu principal */}
             <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-700/50 overflow-x-hidden shadow-2xl overflow-y-auto scrollbar-custom max-h-[calc(100vh-8rem)]">
-                {activeTab === "details" ? (
+                {activeTab === "details" && (
                     <>
                         <CharacterHeader
                             character={editedCharacter}
@@ -680,7 +793,9 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
                             renderIcon={renderIcon}
                         />
                     </>
-                ) : (
+                )}
+                
+                {activeTab === "inventory" && (
                     <div className="h-full">
                         <CharacterInventory
                             ref={inventoryRef}
@@ -694,6 +809,20 @@ const DetailPage = ({ characterId, serverId, onBack }) => {
                             onSaveSuccess={handleInventorySaveSuccess}
                         />
                     </div>
+                )}
+
+                {activeTab === "dnd" && (
+                    <DnDPage 
+                        character={editedCharacter}
+                        editMode={editMode} // On force le mode édition si on est sur l'onglet D&D et qu'on a les droits
+                        onSave={(saveFn) => {
+                            dndSaveRef.current = saveFn;
+                        }}
+                        onUpdate={(updatedData) => {
+                            // Logique de mise à jour à implémenter si nécessaire
+                            console.log("DnD Update:", updatedData);
+                        }}
+                    />
                 )}
             </div>
 

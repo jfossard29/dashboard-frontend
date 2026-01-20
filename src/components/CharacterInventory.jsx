@@ -879,6 +879,7 @@ const CharacterInventory = forwardRef(({ character, onClose, editMode, onUpdate,
                                     handleRemoveSlot={handleRemoveSlot}
                                     setHoveredStatsExpand={setHoveredStatsExpand}
                                     hoveredStatsExpand={hoveredStatsExpand}
+                                    characterId={character.id}
                                 />
                             </div>
                         </div>

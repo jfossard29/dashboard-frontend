@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {Plus, Loader2, ArrowLeft} from 'lucide-react';
 import '../Scrollbar.css';
 import Popup from '../components/Popup.jsx';
@@ -9,6 +9,8 @@ import ItemFilters from '../components/ItemFilters.jsx';
 import ItemSorter from '../components/ItemSorter.jsx';
 import PageHeader from "../components/PageHeader.jsx";
 import itemService from "../services/objetService.js";
+import { createPortal } from 'react-dom';
+import AlertConfirmation from '../components/AlertConfirmation.jsx';
 
 /**
  * ItemsManagementPage.jsx
@@ -33,6 +35,8 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
     AUTRE: true
   });
   const [sortBy, setSortBy] = useState('nom');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   const itemTypes = ['EQUIPEMENT', 'CONSOMMABLE', 'AUTRE'];
   const rarities = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY'];
@@ -42,23 +46,26 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
     { value: 'rarete', label: 'Rareté' }
   ];
 
-  useEffect(() => {
-    if (serverId) fetchItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serverId]);
+  const showPopup = useCallback((message, type) => setPopup({ message, type }), []);
+  const closePopup = () => setPopup({ message: '', type: '' });
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async (silent = false) => {
     try {
       const data = await itemService.getObjets(serverId);
       setItems(data.body || data || []);
       setLoading(false);
     } catch (error) {
-      showPopup('Erreur lors du chargement : '+error, 'error');
+      if (!silent) {
+        showPopup('Erreur lors du chargement : '+error, 'error');
+      }
     }
-  };
+  }, [serverId, showPopup]);
 
-  const showPopup = (message, type) => setPopup({ message, type });
-  const closePopup = () => setPopup({ message: '', type: '' });
+  useEffect(() => {
+    if (serverId) {
+      fetchItems();
+    }
+  }, [serverId, fetchItems]);
 
   const getRarityOrder = (rarity) => {
     const order = { COMMON: 1, UNCOMMON: 2, RARE: 3, EPIC: 4, LEGENDARY: 5 };
@@ -122,11 +129,9 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
     const isNewItem = !editedItem.id;
     try {
       setSaving(true);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      let payload, url, method;
-
+      
       if (isNewItem) {
-        payload = {
+        const payload = {
           nom: editedItem.nom,
           description: editedItem.description,
           type: editedItem.type,
@@ -136,8 +141,8 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
           statistique: editedItem.statistique || {},
           idServeur: serverId
         };
-        url = `${apiUrl}/objet`;
-        method = 'POST';
+        await itemService.createObjet(payload);
+        showPopup(`Objet "${editedItem.nom}" créé avec succès !`, 'success');
       } else {
         const changes = getChangedFields();
         if (!changes) {
@@ -147,32 +152,19 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
           setEditedItem(null);
           return;
         }
-        payload = changes;
-        url = `${apiUrl}/objet/${editedItem.id}`;
-        method = 'PUT';
+        await itemService.updateObjet(editedItem.id, changes);
+        showPopup(`Objet "${editedItem.nom}" modifié avec succès !`, 'success');
       }
 
-      const response = await fetch(url, {
-        method,
-        credentials: 'include',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (response.ok) {
-        await fetchItems();
-        setSelectedItem(null);
-        setOriginalItem(null);
-        setEditMode(false);
-        setEditedItem(null);
-        showPopup(`Objet "${editedItem.nom}" ${isNewItem ? 'créé' : 'modifié'} avec succès !`, 'success');
-      } else {
-        const errorData = await response.json().catch(() => null);
-        showPopup(errorData?.message || 'Erreur lors de la sauvegarde', 'error');
-      }
+      await fetchItems();
+      setSelectedItem(null);
+      setOriginalItem(null);
+      setEditMode(false);
+      setEditedItem(null);
+      
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      showPopup('Erreur de connexion au serveur', 'error');
+      showPopup('Erreur lors de la sauvegarde : ' + error.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -193,28 +185,29 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
     showPopup('Nouvel objet créé, vous pouvez maintenant le modifier', 'info');
   };
 
-  const deleteItem = async (itemId) => {
-    const itemToDelete = items.find(i => i.id === itemId);
-    if (!itemToDelete) return;
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer "${itemToDelete.nom}" ?`)) return;
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${apiUrl}/objet/${itemId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      if (response.ok) {
-        await fetchItems();
-        setSelectedItem(null);
-        setEditMode(false);
-        setEditedItem(null);
-        showPopup(`Objet "${itemToDelete.nom}" supprimé avec succès`, 'success');
-      } else {
-        showPopup('Erreur lors de la suppression', 'error');
+  const confirmDeleteItem = (itemId) => {
+      const item = items.find(i => i.id === itemId);
+      if (item) {
+          setItemToDelete(item);
+          setShowDeleteConfirm(true);
       }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!itemToDelete) return;
+    
+    try {
+      await itemService.deleteObjet(itemToDelete.id);
+      await fetchItems();
+      setSelectedItem(null);
+      setEditMode(false);
+      setEditedItem(null);
+      setShowDeleteConfirm(false);
+      setItemToDelete(null);
+      showPopup(`Objet "${itemToDelete.nom}" supprimé avec succès`, 'success');
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
-      showPopup('Erreur de connexion au serveur', 'error');
+      showPopup('Erreur lors de la suppression', 'error');
     }
   };
 
@@ -304,6 +297,7 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
                 item={editedItem}
                 onCancel={cancelEdit}
                 onSave={saveItem}
+                onDelete={() => confirmDeleteItem(editedItem.id)} // Utilisation de confirmDeleteItem
                 updateField={updateField}
                 addStat={addStat}
                 updateStat={updateStat}
@@ -315,6 +309,18 @@ const ItemsManagementPage = ({ serverId, onBack }) => {
         )}
 
         <Popup message={popup.message} type={popup.type} onClose={closePopup} />
+
+        {createPortal(
+            <AlertConfirmation
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={handleDeleteItem}
+                title="Supprimer l'objet"
+                message={`Êtes-vous sûr de vouloir supprimer "${itemToDelete?.nom}" ? Cette action est irréversible.`}
+                type="danger"
+            />,
+            document.body
+        )}
       </>
   );
 };

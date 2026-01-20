@@ -2,12 +2,22 @@ import { fetchAPI } from './api';
 
 const inventaireService = {
     /**
+     * Récupère l'inventaire d'un personnage
+     */
+    getInventaire: async (personnageId) => {
+        return fetchAPI(`/inventaire/personnage/${personnageId}`, {
+            useInventoryApi: true
+        });
+    },
+
+    /**
      * Ajoute un objet à l'inventaire
      */
     addItem: async (itemData) => {
         return fetchAPI('/inventaire', {
             method: 'POST',
             body: JSON.stringify(itemData),
+            useInventoryApi: true
         });
     },
 
@@ -21,6 +31,7 @@ const inventaireService = {
         
         return fetchAPI(url, {
             method: 'DELETE',
+            useInventoryApi: true
         });
     },
 
@@ -31,6 +42,7 @@ const inventaireService = {
         return fetchAPI(`/objet/${itemId}`, {
             method: 'PUT',
             body: JSON.stringify(itemData),
+            useInventoryApi: true
         });
     }
 };

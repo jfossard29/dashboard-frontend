@@ -64,11 +64,7 @@ const App = () => {
 
     const handleLogout = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-            await fetch(`${apiUrl}/auth/logout`, {
-                method: 'POST',
-                credentials: 'include'
-            });
+            await loginService.logout();
 
             setIsAuthenticated(false);
             setUser(null);

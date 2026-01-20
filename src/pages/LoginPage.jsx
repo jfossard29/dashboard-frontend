@@ -28,7 +28,7 @@ const LoginPage = () => {
     {
       icon: <Users className="w-8 h-8" />,
       title: "Gestion de Personnages",
-      description: "Créez et gérez vos personnages RPG avec une interface intuitive"
+      description: "Créez et gérez vos personnages avec une interface intuitive"
     },
     {
       icon: <Shield className="w-8 h-8" />,
@@ -43,7 +43,7 @@ const LoginPage = () => {
     {
       icon: <BookOpen className="w-8 h-8" />,
       title: "Histoires Immersives",
-      description: "Développez des récits captivants pour vos personnages"
+      description: "Développez des récits captivants en toute simplicité"
     }
   ];
 
@@ -52,7 +52,8 @@ const LoginPage = () => {
     "Gestion des membres et des permissions",
     "Profil utilisateur personnalisé",
     "Configuration avancée par serveur",
-    "Statistiques et analyses détaillées"
+    "Statistiques et analyses détaillées",
+      "Haute personnalisation de vos aventures"
   ];
 
   return (

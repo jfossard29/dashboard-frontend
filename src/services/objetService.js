@@ -6,7 +6,7 @@ const objetService = {
      * Récupère tous les objets d'un serveur
      */
     getObjets: async (serverId) => {
-        return fetchAPI(`/objet/liste/${serverId}`);
+        return fetchAPI(`/objet/liste/${serverId}`, { useInventoryApi: true });
     },
 
     /**
@@ -16,6 +16,7 @@ const objetService = {
         return fetchAPI(`/objet`, {
             method: 'POST',
             body: JSON.stringify(objetData),
+            useInventoryApi: true
         });
     },
 
@@ -26,6 +27,7 @@ const objetService = {
         return fetchAPI(`/objet/${objetId}`, {
             method: 'PUT',
             body: JSON.stringify(changes),
+            useInventoryApi: true
         });
     },
 
@@ -35,6 +37,7 @@ const objetService = {
     deleteObjet: async (objetId) => {
         return fetchAPI(`/objet/${objetId}`, {
             method: 'DELETE',
+            useInventoryApi: true
         });
     },
 };

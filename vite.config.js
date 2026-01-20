@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     cors: {
-      origin: "http://localhost:8080",
+      origin: ["http://localhost:8080","http://localhost:8081","http://localhost:8081"],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true, // Ajout de cette ligne
       allowedHeaders: [

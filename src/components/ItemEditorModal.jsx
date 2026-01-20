@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import { Plus, Save, X, Star, Flame } from 'lucide-react';
+import { Plus, Save, X, Star, Flame, Trash2 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { rarityTranslations, typeTranslations } from '../traduction/objet';
 import { rarityColors } from '../data/objet';
@@ -11,6 +11,7 @@ const ItemEditorModal = ({
                              item,
                              onCancel,
                              onSave,
+                             onDelete, // Nouvelle prop pour la suppression
                              updateField,
                              addStat,
                              updateStat,
@@ -299,6 +300,19 @@ const ItemEditorModal = ({
                                 <Save size={20} className="inline mr-2" />
                                 {saving ? 'Sauvegarde...' : 'SAUVEGARDER'}
                             </button>
+                            
+                            {/* Bouton Supprimer (affiché uniquement si l'objet existe déjà et si onDelete est fourni) */}
+                            {item.id && onDelete && (
+                                <button
+                                    onClick={onDelete}
+                                    disabled={saving}
+                                    className="px-6 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                    title="Supprimer l'objet"
+                                >
+                                    <Trash2 size={20} />
+                                </button>
+                            )}
+
                             <button
                                 onClick={onCancel}
                                 disabled={saving}

@@ -28,19 +28,23 @@ const ForumPage = ({ serverId, members, onNavigate, onBack, onSelectCharacterId,
     try {
       console.log("Appel Personnage");
       const data = await personnageService.getPersonnageListe(serverId);
-      setCharacters(data.body);
-      const formattedCharacters = data.body.map((character) => ({
-        id: character.id,
-        name: `${character.prenom} ${character.nom ? character.nom : ''}`,
-        image: character.image,
-        summary: character.resume,
-        level: character.niveau || 1,
-        power: character.puissance || 0,
-        userAvatar: findUserAvatar(character.idUtilisateur),
-        userUsername: findUserUsername(character.idUtilisateur),
-        idUtilisateur: character.idUtilisateur,
-      }));
-      setCharacters(formattedCharacters);
+      
+      if (data && data.body) {
+          const formattedCharacters = data.body.map((character) => ({
+            id: character.id,
+            name: `${character.prenom} ${character.nom ? character.nom : ''}`,
+            image: character.image,
+            summary: character.resume,
+            level: character.niveau || 1,
+            power: character.puissance || 0,
+            userAvatar: findUserAvatar(character.idUtilisateur),
+            userUsername: findUserUsername(character.idUtilisateur),
+            idUtilisateur: character.idUtilisateur,
+          }));
+          setCharacters(formattedCharacters);
+      } else {
+          setCharacters([]);
+      }
 
     } catch (error) {
       showPopup('Erreur lors du chargement', 'error');

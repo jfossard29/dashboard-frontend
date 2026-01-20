@@ -6,14 +6,28 @@ import Navbar from "../components/Navbar.jsx";
 import ForumPage from "./ForumPage.jsx";
 import DetailPage from "./DetailPage.jsx";
 import ItemsManagementPage from "./ItemsManagementPage.jsx";
+import guildService from "../services/serveurService.js";
 
 const ServerPage = ({ user, onLogout, onUpdateUser }) => {
     const { serverId } = useParams();
     const navigate = useNavigate();
-    const [currentPage, setCurrentPage] = useState("home");
+    
+    // Récupération de l'état sauvegardé dans le localStorage
+    const savedState = JSON.parse(localStorage.getItem(`serverState_${serverId}`)) || {};
+    
+    const [currentPage, setCurrentPage] = useState(savedState.currentPage || "home");
+    const [characterId, setCharacterId] = useState(savedState.characterId || null);
+    
     const [serverData, setServerData] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [characterId, setCharacterId] = useState(null);
+
+    // Sauvegarde de l'état dans le localStorage à chaque changement
+    useEffect(() => {
+        localStorage.setItem(`serverState_${serverId}`, JSON.stringify({
+            currentPage,
+            characterId
+        }));
+    }, [currentPage, characterId, serverId]);
 
     // Trouver le serveur dans les guilds de l'utilisateur
     const currentServer = user?.guilds?.find(guild => guild.id === serverId);
@@ -36,14 +50,9 @@ const ServerPage = ({ user, onLogout, onUpdateUser }) => {
 
     const fetchServerData = async () => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-            const response = await fetch(`${apiUrl}/guilds/${serverId}/members`, {
-                method: 'GET',
-                credentials: 'include'
-            });
+            const data = await guildService.getGuildMembers(serverId);
 
-            if (response.ok) {
-                const data = await response.json();
+            if (data) {
                 const updatedGuilds = user.guilds.map(guild => {
                     if (guild.id === serverId) {
                         return {
@@ -76,6 +85,7 @@ const ServerPage = ({ user, onLogout, onUpdateUser }) => {
     };
 
     const isOwner = currentServer?.owner === 'true' || currentServer?.owner === true;
+    const isAdmin = currentServer?.role === 'Admin' || isOwner;
 
     // Données mockées pour l'exemple
     const serverStats = [
@@ -285,7 +295,7 @@ const ServerPage = ({ user, onLogout, onUpdateUser }) => {
                 )}
 
                 {currentPage === "detail" && (
-                    <DetailPage characterId={characterId} onBack={() => setCurrentPage('forum')} onSave={null}/>
+                    <DetailPage characterId={characterId} onBack={() => setCurrentPage('forum')} onSave={null} userId={user.id} isAdmin={isAdmin} />
                 )}
 
                 {currentPage === "objets" && (

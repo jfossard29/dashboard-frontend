@@ -1,11 +1,38 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {Newspaper, TrendingUp, Calendar, Trophy, Users, Zap, MessageSquare, Bell} from 'lucide-react';
 import Sidebar from "../components/Sidebar.jsx";
 import Navbar from "../components/Navbar.jsx";
 import {useNavigate} from "react-router-dom";
+import statistiqueService from "../services/statistiqueService.js";
+
 const GlobalPage = ({ user }) => {
     const [currentPage, setCurrentPage] = useState("accueil");
+    const [stats, setStats] = useState({
+        personnages: "0",
+        utilisateurs: "0",
+        serveurs: "0"
+    });
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const data = await statistiqueService.getGlobalStats();
+                if (data && data.body) {
+                    setStats({
+                        personnages: data.body.nbPersonnage || "0",
+                        utilisateurs: data.body.nbUtilisateur || "0",
+                        serveurs: data.body.nbServeur || "0"
+                    });
+                }
+            } catch (error) {
+                console.error("Erreur lors de la récupération des statistiques globales", error);
+            }
+        };
+
+        fetchStats();
+    }, []);
+
     const news = [
         {
             id: 1,
@@ -49,7 +76,7 @@ const GlobalPage = ({ user }) => {
         {
             icon: <Users className="w-6 h-6" />,
             label: "Utilisateurs actifs",
-            value: "12.5K",
+            value: stats.utilisateurs,
             trend: "+15%",
             color: "from-blue-500 to-cyan-500",
             bgColor: "bg-blue-500/20"
@@ -57,7 +84,7 @@ const GlobalPage = ({ user }) => {
         {
             icon: <Newspaper className="w-6 h-6" />,
             label: "Personnages créés",
-            value: "45.2K",
+            value: stats.personnages,
             trend: "+23%",
             color: "from-purple-500 to-pink-500",
             bgColor: "bg-purple-500/20"
@@ -73,7 +100,7 @@ const GlobalPage = ({ user }) => {
         {
             icon: <Calendar className="w-6 h-6" />,
             label: "Serveurs actifs",
-            value: "2.8K",
+            value: stats.serveurs,
             trend: "+12%",
             color: "from-green-500 to-emerald-500",
             bgColor: "bg-green-500/20"
